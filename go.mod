@@ -1,4 +1,4 @@
-module portless.io/shared-packages
+module github.com/portless-io/shared-packages
 
 go 1.17
 
