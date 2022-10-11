@@ -118,7 +118,7 @@ func (rm *rabbitMqRepository) InitChannel() {
 				continue
 			}
 
-			log.Println("re-connected to broker")
+			log.Println("re-connected to message broker")
 			defer rabbitMQConnection.Close()
 
 			rabbitMQChannel, err := rabbitMQConnection.Channel()
