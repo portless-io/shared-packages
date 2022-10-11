@@ -8,28 +8,27 @@ import (
 	"time"
 
 	"github.com/portless-io/shared-packages/dto"
+	"github.com/portless-io/shared-packages/repository"
 	"github.com/streadway/amqp"
 )
 
-type RabbitMqRepository struct {
+type rabbitMqRepository struct {
 	Ch  *amqp.Channel
 	url string
 }
 
-func NewRabbitMqRepository(ch *amqp.Channel, url string) *RabbitMqRepository {
-	rabbitmqRepository := &RabbitMqRepository{
+func NewRabbitMqRepository(ch *amqp.Channel, url string) repository.MessageBrokerRepository {
+	return &rabbitMqRepository{
 		Ch:  ch,
 		url: url,
 	}
-
-	return rabbitmqRepository
 }
 
-func (rm *RabbitMqRepository) SetNewRabbitMqChannel(ch *amqp.Channel) {
+func (rm *rabbitMqRepository) SetNewRabbitMqChannel(ch *amqp.Channel) {
 	rm.Ch = ch
 }
 
-func (rm *RabbitMqRepository) PublishMessage(topic string, message interface{}) error {
+func (rm *rabbitMqRepository) PublishMessage(topic string, message interface{}) error {
 	messageInByte, err := json.Marshal(message)
 	if err != nil {
 		return fmt.Errorf("rabbitmq publish: failed marshalling msg")
@@ -52,7 +51,7 @@ func failOnError(err error, msg string) {
 	}
 }
 
-func (rm *RabbitMqRepository) Consume(consumer dto.MessageBrokerConsumer) {
+func (rm *rabbitMqRepository) Consume(consumer dto.MessageBrokerConsumer) {
 	q, err := rm.Ch.QueueDeclare(
 		consumer.MessageRouting, // name
 		false,                   // durable
@@ -105,7 +104,7 @@ func (rm *RabbitMqRepository) Consume(consumer dto.MessageBrokerConsumer) {
 	wg.Wait()
 }
 
-func (rm *RabbitMqRepository) InitChannel() {
+func (rm *rabbitMqRepository) InitChannel() {
 	go func(url string) {
 		for {
 			time.Sleep(15 * time.Second)
@@ -132,6 +131,6 @@ func (rm *RabbitMqRepository) InitChannel() {
 	}(rm.url)
 }
 
-func (rm *RabbitMqRepository) GetChannel() *amqp.Channel {
+func (rm *rabbitMqRepository) GetChannel() *amqp.Channel {
 	return rm.Ch
 }
