@@ -8,53 +8,28 @@ import (
 	"time"
 
 	"github.com/portless-io/shared-packages/dto"
-	"github.com/portless-io/shared-packages/repository"
 	"github.com/streadway/amqp"
 )
 
-type rabbitMqRepository struct {
-	Ch *amqp.Channel
+type RabbitMqRepository struct {
+	Ch  *amqp.Channel
+	url string
 }
 
-func NewRabbitMqRepository(ch *amqp.Channel, url string) repository.MessageBrokerRepository {
-	rabbitmqRepository := &rabbitMqRepository{
-		Ch: ch,
+func NewRabbitMqRepository(ch *amqp.Channel, url string) *RabbitMqRepository {
+	rabbitmqRepository := &RabbitMqRepository{
+		Ch:  ch,
+		url: url,
 	}
-
-	go func(url string) {
-		for {
-			time.Sleep(15 * time.Second)
-			<-ch.NotifyClose(make(chan *amqp.Error))
-
-			rabbitMQConnection, err := amqp.Dial(url)
-			if err != nil {
-				log.Printf("RabbitMQ: failed re-connect to broker: %s", err.Error())
-				continue
-			}
-
-			log.Println("re-connected to broker")
-			defer rabbitMQConnection.Close()
-
-			rabbitMQChannel, err := rabbitMQConnection.Channel()
-			if err != nil {
-				log.Printf("RabbitMQ: failed re-open channel %s", err.Error())
-				continue
-			}
-
-			rabbitmqRepository.SetNewRabbitMqChannel(rabbitMQChannel)
-			rabbitmqRepository.Ch = rabbitMQChannel
-			break
-		}
-	}(url)
 
 	return rabbitmqRepository
 }
 
-func (rm *rabbitMqRepository) SetNewRabbitMqChannel(ch *amqp.Channel) {
+func (rm *RabbitMqRepository) SetNewRabbitMqChannel(ch *amqp.Channel) {
 	rm.Ch = ch
 }
 
-func (rm *rabbitMqRepository) PublishMessage(topic string, message interface{}) error {
+func (rm *RabbitMqRepository) PublishMessage(topic string, message interface{}) error {
 	messageInByte, err := json.Marshal(message)
 	if err != nil {
 		return fmt.Errorf("rabbitmq publish: failed marshalling msg")
@@ -77,7 +52,7 @@ func failOnError(err error, msg string) {
 	}
 }
 
-func (rm *rabbitMqRepository) Consume(consumer dto.MessageBrokerConsumer) {
+func (rm *RabbitMqRepository) Consume(consumer dto.MessageBrokerConsumer) {
 	q, err := rm.Ch.QueueDeclare(
 		consumer.MessageRouting, // name
 		false,                   // durable
@@ -130,6 +105,33 @@ func (rm *rabbitMqRepository) Consume(consumer dto.MessageBrokerConsumer) {
 	wg.Wait()
 }
 
-func (rm *rabbitMqRepository) GetChannel() *amqp.Channel {
+func (rm *RabbitMqRepository) Init() {
+	go func(url string) {
+		for {
+			time.Sleep(15 * time.Second)
+			<-rm.Ch.NotifyClose(make(chan *amqp.Error))
+
+			rabbitMQConnection, err := amqp.Dial(url)
+			if err != nil {
+				log.Printf("RabbitMQ: failed re-connect to broker: %s", err.Error())
+				continue
+			}
+
+			log.Println("re-connected to broker")
+			defer rabbitMQConnection.Close()
+
+			rabbitMQChannel, err := rabbitMQConnection.Channel()
+			if err != nil {
+				log.Printf("RabbitMQ: failed re-open channel %s", err.Error())
+				continue
+			}
+
+			rm.SetNewRabbitMqChannel(rabbitMQChannel)
+			break
+		}
+	}(rm.url)
+}
+
+func (rm *RabbitMqRepository) GetChannel() *amqp.Channel {
 	return rm.Ch
 }
