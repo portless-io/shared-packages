@@ -108,6 +108,8 @@ func (rm *rabbitMqRepository) InitChannel() {
 	go func(url string) {
 		for {
 			time.Sleep(15 * time.Second)
+			log.Println("trying to re-connect to message broker")
+
 			<-rm.Ch.NotifyClose(make(chan *amqp.Error))
 
 			rabbitMQConnection, err := amqp.Dial(url)
