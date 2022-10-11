@@ -105,7 +105,7 @@ func (rm *RabbitMqRepository) Consume(consumer dto.MessageBrokerConsumer) {
 	wg.Wait()
 }
 
-func (rm *RabbitMqRepository) Init() {
+func (rm *RabbitMqRepository) InitChannel() {
 	go func(url string) {
 		for {
 			time.Sleep(15 * time.Second)
