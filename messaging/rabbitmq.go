@@ -140,6 +140,7 @@ func (rm *rabbitMqRepository) Consume(consumer dto.MessageBrokerConsumer) {
 			err := json.Unmarshal(d.Body, &data)
 			if err != nil {
 				log.Println("consumer failed: ", err.Error())
+				break
 			}
 
 			go func() {
