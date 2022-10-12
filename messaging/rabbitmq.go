@@ -13,7 +13,7 @@ import (
 )
 
 type rabbitMqRepository struct {
-	Ch  *amqp.Channel
+	ch  *amqp.Channel
 	url string
 }
 
@@ -33,7 +33,7 @@ func NewRabbitMqRepository(url string) repository.MessageBrokerRepository {
 	}
 
 	messagingRepository := &rabbitMqRepository{
-		Ch:  rabbitMQChannel,
+		ch:  rabbitMQChannel,
 		url: url,
 	}
 
@@ -66,7 +66,7 @@ func NewRabbitMqRepository(url string) repository.MessageBrokerRepository {
 }
 
 func (rm *rabbitMqRepository) SetNewRabbitMqChannel(ch *amqp.Channel) {
-	rm.Ch = ch
+	rm.ch = ch
 }
 
 func (rm *rabbitMqRepository) PublishMessage(topic string, message interface{}) error {
@@ -75,7 +75,7 @@ func (rm *rabbitMqRepository) PublishMessage(topic string, message interface{}) 
 		return fmt.Errorf("rabbitmq publish: failed marshalling msg")
 	}
 
-	return rm.Ch.Publish(
+	return rm.ch.Publish(
 		"",    // exchange
 		topic, // routing key
 		false, // mandatory
@@ -93,7 +93,7 @@ func failOnError(err error, msg string) {
 }
 
 func (rm *rabbitMqRepository) Consume(consumer dto.MessageBrokerConsumer) {
-	q, err := rm.Ch.QueueDeclare(
+	q, err := rm.ch.QueueDeclare(
 		consumer.MessageRouting, // name
 		false,                   // durable
 		false,                   // delete when unused
@@ -104,7 +104,7 @@ func (rm *rabbitMqRepository) Consume(consumer dto.MessageBrokerConsumer) {
 
 	failOnError(err, "Failed to declare a queue")
 
-	msgs, err := rm.Ch.Consume(
+	msgs, err := rm.ch.Consume(
 		q.Name, // queue
 		"",     // consumer
 		true,   // auto-ack
@@ -138,7 +138,6 @@ func (rm *rabbitMqRepository) Consume(consumer dto.MessageBrokerConsumer) {
 					log.Println("consumer failed: ", err.Error())
 				}
 				<-concurrentGoroutines
-
 			}()
 		}
 	}()
@@ -146,5 +145,5 @@ func (rm *rabbitMqRepository) Consume(consumer dto.MessageBrokerConsumer) {
 }
 
 func (rm *rabbitMqRepository) GetChannel() *amqp.Channel {
-	return rm.Ch
+	return rm.ch
 }
