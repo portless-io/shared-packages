@@ -172,6 +172,6 @@ func (rm *rabbitMqRepository) AddConsumers(consumers []dto.MessageBrokerConsumer
 	rm.consumers = &consumers
 }
 
-func (rm *rabbitMqRepository) CloseConnection() error {
+func (rm *rabbitMqRepository) CloseChannel() error {
 	return rm.ch.Close()
 }
