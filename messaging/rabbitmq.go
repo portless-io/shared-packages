@@ -72,8 +72,6 @@ func NewRabbitMqRepository(url string, consumers *[]dto.MessageBrokerConsumer) r
 					messagingRepository.Consume(consumer)
 				}
 			}
-
-			break
 		}
 	}(url)
 
