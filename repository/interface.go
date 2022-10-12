@@ -10,4 +10,6 @@ type MessageBrokerRepository interface {
 	Consume(consumer dto.MessageBrokerConsumer)
 	SetNewRabbitMqChannel(ch *amqp.Channel)
 	GetChannel() *amqp.Channel
+	AddConsumers(consumers []dto.MessageBrokerConsumer)
+	CloseConnection() error
 }

@@ -13,11 +13,12 @@ import (
 )
 
 type rabbitMqRepository struct {
-	ch  *amqp.Channel
-	url string
+	ch        *amqp.Channel
+	url       string
+	consumers *[]dto.MessageBrokerConsumer
 }
 
-func NewRabbitMqRepository(url string) repository.MessageBrokerRepository {
+func NewRabbitMqRepository(url string, consumers *[]dto.MessageBrokerConsumer) repository.MessageBrokerRepository {
 	rabbitMQConnection, err := amqp.Dial(url)
 	if err != nil {
 		log.Fatalf("RabbitMQ: failed connect to broker: %s", err.Error())
@@ -33,8 +34,15 @@ func NewRabbitMqRepository(url string) repository.MessageBrokerRepository {
 	}
 
 	messagingRepository := &rabbitMqRepository{
-		ch:  rabbitMQChannel,
-		url: url,
+		ch:        rabbitMQChannel,
+		url:       url,
+		consumers: consumers,
+	}
+
+	if consumers != nil {
+		for _, consumer := range *consumers {
+			messagingRepository.Consume(consumer)
+		}
 	}
 
 	go func(url string) {
@@ -58,6 +66,13 @@ func NewRabbitMqRepository(url string) repository.MessageBrokerRepository {
 			}
 
 			messagingRepository.SetNewRabbitMqChannel(rabbitMQChannel)
+
+			if messagingRepository.consumers != nil {
+				for _, consumer := range *messagingRepository.consumers {
+					messagingRepository.Consume(consumer)
+				}
+			}
+
 			break
 		}
 	}(url)
@@ -146,4 +161,18 @@ func (rm *rabbitMqRepository) Consume(consumer dto.MessageBrokerConsumer) {
 
 func (rm *rabbitMqRepository) GetChannel() *amqp.Channel {
 	return rm.ch
+}
+
+func (rm *rabbitMqRepository) AddConsumers(consumers []dto.MessageBrokerConsumer) {
+	if consumers != nil {
+		for _, consumer := range consumers {
+			rm.Consume(consumer)
+		}
+	}
+
+	rm.consumers = &consumers
+}
+
+func (rm *rabbitMqRepository) CloseConnection() error {
+	return rm.ch.Close()
 }
