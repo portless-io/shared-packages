@@ -17,11 +17,52 @@ type rabbitMqRepository struct {
 	url string
 }
 
-func NewRabbitMqRepository(ch *amqp.Channel, url string) repository.MessageBrokerRepository {
-	return &rabbitMqRepository{
-		Ch:  ch,
+func NewRabbitMqRepository(url string) repository.MessageBrokerRepository {
+	rabbitMQConnection, err := amqp.Dial(url)
+	if err != nil {
+		log.Fatalf("RabbitMQ: failed connect to broker: %s", err.Error())
+		panic(err)
+	}
+
+	log.Println("connected to broker")
+
+	rabbitMQChannel, err := rabbitMQConnection.Channel()
+	if err != nil {
+		log.Fatalf("RabbitMQ: failed open channel")
+		panic(err)
+	}
+
+	messagingRepository := &rabbitMqRepository{
+		Ch:  rabbitMQChannel,
 		url: url,
 	}
+
+	go func(url string) {
+		for {
+			time.Sleep(15 * time.Second)
+			<-rabbitMQChannel.NotifyClose(make(chan *amqp.Error))
+
+			log.Println("trying to re-connect to message broker")
+			rabbitMQConnection, err := amqp.Dial(url)
+			if err != nil {
+				log.Printf("RabbitMQ: failed re-connect to broker: %s", err.Error())
+				continue
+			}
+
+			log.Println("re-connected to message broker")
+
+			rabbitMQChannel, err := rabbitMQConnection.Channel()
+			if err != nil {
+				log.Printf("RabbitMQ: failed re-open channel %s", err.Error())
+				continue
+			}
+
+			messagingRepository.SetNewRabbitMqChannel(rabbitMQChannel)
+			break
+		}
+	}(url)
+
+	return messagingRepository
 }
 
 func (rm *rabbitMqRepository) SetNewRabbitMqChannel(ch *amqp.Channel) {
@@ -102,35 +143,6 @@ func (rm *rabbitMqRepository) Consume(consumer dto.MessageBrokerConsumer) {
 		}
 	}()
 	wg.Wait()
-}
-
-func (rm *rabbitMqRepository) InitChannel() {
-	go func(url string) {
-		for {
-			time.Sleep(15 * time.Second)
-			log.Println("trying to re-connect to message broker")
-
-			<-rm.Ch.NotifyClose(make(chan *amqp.Error))
-
-			rabbitMQConnection, err := amqp.Dial(url)
-			if err != nil {
-				log.Printf("RabbitMQ: failed re-connect to broker: %s", err.Error())
-				continue
-			}
-
-			log.Println("re-connected to message broker")
-			defer rabbitMQConnection.Close()
-
-			rabbitMQChannel, err := rabbitMQConnection.Channel()
-			if err != nil {
-				log.Printf("RabbitMQ: failed re-open channel %s", err.Error())
-				continue
-			}
-
-			rm.SetNewRabbitMqChannel(rabbitMQChannel)
-			break
-		}
-	}(rm.url)
 }
 
 func (rm *rabbitMqRepository) GetChannel() *amqp.Channel {
