@@ -46,34 +46,37 @@ func NewRabbitMqRepository(url string, consumers *[]dto.MessageBrokerConsumer) r
 	}
 
 	go func(url string) {
-		<-rabbitMQChannel.NotifyClose(make(chan *amqp.Error))
 		for {
-			time.Sleep(20 * time.Second)
+			<-messagingRepository.ch.NotifyClose(make(chan *amqp.Error))
+			log.Println("message broker disconnected")
+			for {
+				time.Sleep(20 * time.Second)
 
-			log.Println("trying to re-connect to message broker")
-			rabbitMQConnection, err := amqp.Dial(url)
-			if err != nil {
-				log.Printf("RabbitMQ: failed re-connect to broker: %s", err.Error())
-				continue
-			}
-
-			log.Println("re-connected to message broker")
-
-			rabbitMQChannel, err := rabbitMQConnection.Channel()
-			if err != nil {
-				log.Printf("RabbitMQ: failed re-open channel %s", err.Error())
-				continue
-			}
-
-			messagingRepository.SetNewRabbitMqChannel(rabbitMQChannel)
-
-			if messagingRepository.consumers != nil {
-				for _, consumer := range *messagingRepository.consumers {
-					messagingRepository.Consume(consumer)
+				log.Println("trying to re-connect to message broker")
+				rabbitMQConnection, err := amqp.Dial(url)
+				if err != nil {
+					log.Printf("RabbitMQ: failed re-connect to broker: %s", err.Error())
+					continue
 				}
-			}
 
-			break
+				log.Println("re-connected to message broker")
+
+				rabbitMQChannel, err := rabbitMQConnection.Channel()
+				if err != nil {
+					log.Printf("RabbitMQ: failed re-open channel %s", err.Error())
+					continue
+				}
+
+				messagingRepository.SetNewRabbitMqChannel(rabbitMQChannel)
+
+				if messagingRepository.consumers != nil {
+					for _, consumer := range *messagingRepository.consumers {
+						messagingRepository.Consume(consumer)
+					}
+				}
+
+				break
+			}
 		}
 	}(url)
 
