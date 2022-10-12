@@ -46,9 +46,9 @@ func NewRabbitMqRepository(url string, consumers *[]dto.MessageBrokerConsumer) r
 	}
 
 	go func(url string) {
+		<-rabbitMQChannel.NotifyClose(make(chan *amqp.Error))
 		for {
 			time.Sleep(20 * time.Second)
-			<-rabbitMQChannel.NotifyClose(make(chan *amqp.Error))
 
 			log.Println("trying to re-connect to message broker")
 			rabbitMQConnection, err := amqp.Dial(url)
@@ -72,6 +72,8 @@ func NewRabbitMqRepository(url string, consumers *[]dto.MessageBrokerConsumer) r
 					messagingRepository.Consume(consumer)
 				}
 			}
+
+			break
 		}
 	}(url)
 
