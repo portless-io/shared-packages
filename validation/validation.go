@@ -17,7 +17,7 @@ func AlphanumObjKey(data map[string]string) bool {
 		return false
 	}
 
-	for _, v := range data {
+	for v := range data {
 		isTrue := regex.MatchString(v)
 		if !isTrue {
 			return isTrue
